@@ -1,0 +1,414 @@
+Что такое FSM простыми словами
+FSM (Finite State Machine) — конечный автомат.
+
+Это способ описать логику системы через:
+
+состояния (что сейчас делает машина),
+
+события/условия (что произошло),
+
+переходы (как меняется состояние).
+
+Для стиральной машины это звучит очень естественно:
+
+сейчас набор воды
+
+потом нагрев
+
+потом стирка
+
+потом слив
+
+потом отжим
+
+Вместо того чтобы писать «лапшу» из if и delay, ты говоришь:
+
+«Если я в состоянии WASH и прошло 10 минут — перейти в DRAIN».
+
+FSM даёт тебе:
+
+чёткую структуру — всегда понятно, где ты и что должно происходить;
+
+управляемые переходы — меньше глюков;
+
+простоту отладки — можно логировать текущее состояние;
+
+расширяемость — легко добавить новый режим.
+
+Полная блок‑схема режимов стирки
+Опишу её текстом, но так, чтобы ты мог легко нарисовать в любом редакторе (или на бумаге).
+
+1. Верхний уровень: жизненный цикл программы
+START / INIT
+
+инициализация контроллера, портов, таймеров, АЦП, прерываний;
+
+проверка датчиков (дверь закрыта? аварий нет?).
+
+IDLE (Ожидание)
+
+ждём выбора программы;
+
+кнопки: старт, выбор режима, температура, обороты.
+
+PROGRAM_RUN (Выполнение программы)
+
+внутри — последовательность фаз: FILL → HEAT → WASH → DRAIN → SPIN.
+
+END (Завершение программы)
+
+звуковой сигнал, разблокировка люка, возврат в IDLE.
+
+ERROR (Авария)
+
+остановка всех исполнительных механизмов;
+
+индикация ошибки;
+
+ожидание вмешательства пользователя.
+
+2. Детализация фаз стирки
+Теперь разложим PROGRAM_RUN на подэтапы.
+
+Состояние: FILL_WATER (Набор воды)
+Вход в состояние:
+
+закрыть люк (если есть блокировка);
+
+открыть клапан воды;
+
+запустить таймер контроля максимального времени набора.
+
+Внутри состояния:
+
+периодически опрашивать датчик уровня воды;
+
+если уровень достигнут → закрыть клапан → переход в HEAT или сразу в WASH (если стирка холодная);
+
+если время набора превысило лимит → ERROR (нет воды).
+
+Выход из состояния:
+
+клапан гарантированно закрыт.
+
+Состояние: HEAT (Нагрев)
+Вход:
+
+включить нагреватель;
+
+запомнить время начала нагрева.
+
+Внутри:
+
+периодически измерять температуру;
+
+если достигнута заданная температура → выключить нагрев → переход в WASH;
+
+если время нагрева слишком большое → ERROR (нет нагрева, обрыв ТЭНа, датчик).
+
+Выход:
+
+нагреватель выключен.
+
+Состояние: WASH (Стирка)
+Вход:
+
+включить двигатель на малых оборотах;
+
+задать режим реверса (например, 10 секунд в одну сторону, 10 секунд в другую);
+
+запустить таймер общей длительности стирки.
+
+Внутри:
+
+по таймеру реверса менять направление вращения;
+
+следить за током двигателя (перегрузка?);
+
+следить за уровнем воды (не ушла ли?);
+
+если общее время стирки истекло → переход в DRAIN.
+
+Выход:
+
+двигатель остановлен.
+
+Состояние: DRAIN (Слив)
+Вход:
+
+включить помпу;
+
+запустить таймер максимального времени слива.
+
+Внутри:
+
+контролировать уровень воды (если есть датчик);
+
+если уровень воды низкий → переход в SPIN;
+
+если время слива истекло, а вода не ушла → ERROR (засор).
+
+Выход:
+
+помпа выключена.
+
+Состояние: SPIN (Отжим)
+Вход:
+
+убедиться, что вода слита;
+
+включить двигатель на высоких оборотах;
+
+запустить таймер отжима.
+
+Внутри:
+
+контролировать вибрацию (если есть датчик);
+
+контролировать ток двигателя;
+
+если время отжима истекло → переход в END.
+
+Выход:
+
+двигатель остановлен.
+
+Состояние: END (Конец программы)
+Вход:
+
+подать звуковой сигнал;
+
+разблокировать люк.
+
+Внутри:
+
+ждать, пока пользователь откроет/закроет люк или нажмёт кнопку;
+
+по событию → переход в IDLE.
+
+Состояние: ERROR (Авария)
+Вход:
+
+немедленно выключить нагрев, двигатель, клапан, помпу;
+
+сохранить код ошибки;
+
+включить индикацию ошибки.
+
+Внутри:
+
+ждать нажатия кнопки «Сброс» или отключения питания;
+
+по сбросу → IDLE.
+
+Как это выглядит как FSM
+У тебя есть:
+
+перечисление состояний (enum),
+
+переменная текущего состояния,
+
+функция обработки состояния, которая вызывается в главном цикле.
+
+Скелет FSM на C (под STM32, но без привязки к HAL)
+Это не финальный код, а каркас, который можно развивать.
+
+1. Определяем состояния
+c
+typedef enum {
+    STATE_IDLE = 0,
+    STATE_FILL_WATER,
+    STATE_HEAT,
+    STATE_WASH,
+    STATE_DRAIN,
+    STATE_SPIN,
+    STATE_END,
+    STATE_ERROR
+} WashState_t;
+2. Глобальная переменная состояния
+c
+static WashState_t currentState = STATE_IDLE;
+3. Структура для таймеров и контекста
+c
+typedef struct {
+    uint32_t washStartTime;
+    uint32_t heatStartTime;
+    uint32_t fillStartTime;
+    uint32_t drainStartTime;
+    uint32_t spinStartTime;
+    uint32_t reverseStartTime;
+    uint8_t  errorCode;
+} WashContext_t;
+
+static WashContext_t ctx;
+Предполагаем, что у тебя есть системный тик в миллисекундах, например:
+
+c
+extern volatile uint32_t sysTickMs;
+
+uint32_t millis(void) {
+    return sysTickMs;
+}
+4. Прототипы функций управления железом
+c
+void Valve_Open(void);
+void Valve_Close(void);
+
+void Heater_On(void);
+void Heater_Off(void);
+
+void Motor_Stop(void);
+void Motor_RunForwardLow(void);
+void Motor_RunReverseLow(void);
+void Motor_RunHighSpeed(void);
+
+void Pump_On(void);
+void Pump_Off(void);
+
+int  WaterLevel_IsFull(void);      // 1 - достаточно воды
+int  WaterLevel_IsEmpty(void);     // 1 - воды нет
+int  Temp_IsReached(void);         // 1 - достигнута заданная температура
+
+void Door_Lock(void);
+void Door_Unlock(void);
+
+void Buzzer_BeepEnd(void);
+
+int  User_StartPressed(void);
+int  User_ResetPressed(void);
+5. Обработчик FSM
+Главная идея: каждый вызов FSM_Process() делает маленький шаг, без задержек.
+
+c
+void FSM_Process(void) {
+    switch (currentState) {
+
+    case STATE_IDLE:
+        // Ожидание команды на старт
+        if (User_StartPressed()) {
+            Door_Lock();
+            ctx.fillStartTime = millis();
+            currentState = STATE_FILL_WATER;
+        }
+        break;
+
+    case STATE_FILL_WATER:
+        // Вход в состояние можно оформить отдельной функцией, но для простоты — прямо тут
+        Valve_Open();
+
+        if (WaterLevel_IsFull()) {
+            Valve_Close();
+            // Если нужна горячая стирка:
+            ctx.heatStartTime = millis();
+            currentState = STATE_HEAT;
+            // Если холодная — можно сразу в WASH
+            // ctx.washStartTime = millis();
+            // currentState = STATE_WASH;
+        } else if (millis() - ctx.fillStartTime > MAX_FILL_TIME_MS) {
+            Valve_Close();
+            ctx.errorCode = 1; // нет воды
+            currentState = STATE_ERROR;
+        }
+        break;
+
+    case STATE_HEAT:
+        Heater_On();
+
+        if (Temp_IsReached()) {
+            Heater_Off();
+            ctx.washStartTime = millis();
+            ctx.reverseStartTime = millis();
+            Motor_RunForwardLow();
+            currentState = STATE_WASH;
+        } else if (millis() - ctx.heatStartTime > MAX_HEAT_TIME_MS) {
+            Heater_Off();
+            ctx.errorCode = 2; // нет нагрева
+            currentState = STATE_ERROR;
+        }
+        break;
+
+    case STATE_WASH:
+        // Реверс двигателя
+        if (millis() - ctx.reverseStartTime > REVERSE_INTERVAL_MS) {
+            // смена направления
+            static uint8_t dir = 0;
+            dir = !dir;
+            if (dir) {
+                Motor_RunForwardLow();
+            } else {
+                Motor_RunReverseLow();
+            }
+            ctx.reverseStartTime = millis();
+        }
+
+        // Контроль общего времени стирки
+        if (millis() - ctx.washStartTime > WASH_TIME_MS) {
+            Motor_Stop();
+            ctx.drainStartTime = millis();
+            Pump_On();
+            currentState = STATE_DRAIN;
+        }
+        break;
+
+    case STATE_DRAIN:
+        if (WaterLevel_IsEmpty()) {
+            Pump_Off();
+            ctx.spinStartTime = millis();
+            Motor_RunHighSpeed();
+            currentState = STATE_SPIN;
+        } else if (millis() - ctx.drainStartTime > MAX_DRAIN_TIME_MS) {
+            Pump_Off();
+            ctx.errorCode = 3; // слив не удался
+            currentState = STATE_ERROR;
+        }
+        break;
+
+    case STATE_SPIN:
+        if (millis() - ctx.spinStartTime > SPIN_TIME_MS) {
+            Motor_Stop();
+            Buzzer_BeepEnd();
+            Door_Unlock();
+            currentState = STATE_END;
+        }
+        break;
+
+    case STATE_END:
+        // Ожидание, пока пользователь откроет/закроет люк или нажмёт кнопку
+        if (User_ResetPressed()) {
+            currentState = STATE_IDLE;
+        }
+        break;
+
+    case STATE_ERROR:
+        // Здесь можно один раз всё выключить и мигать ошибкой
+        Motor_Stop();
+        Heater_Off();
+        Valve_Close();
+        Pump_Off();
+        Door_Unlock();
+        // Индикация ошибки по ctx.errorCode
+        if (User_ResetPressed()) {
+            currentState = STATE_IDLE;
+        }
+        break;
+
+    default:
+        currentState = STATE_ERROR;
+        ctx.errorCode = 255;
+        break;
+    }
+}
+6. Главный цикл программы
+c
+int main(void) {
+    Hardware_Init();   // тактирование, порты, таймер SysTick, прерывания и т.д.
+
+    currentState = STATE_IDLE;
+
+    while (1) {
+        // опрос кнопок, датчиков, обновление sysTickMs — где-то в прерываниях
+        FSM_Process();  // никаких delay() внутри!
+        // можно добавить небольшую паузу, если нужно:
+        // small_sleep(); но не блокирующую на секунды
+    }
+}

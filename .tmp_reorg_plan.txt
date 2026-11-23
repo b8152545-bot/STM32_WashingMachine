@@ -1,0 +1,92 @@
+Proposed folder layout under src:
+
+src/
+  core/        - system-level and main app files (main.c, main.h, stm32f103xx_CMSIS.*)
+  drivers/     - peripheral drivers (i2c_drive.c/h, SPI2.c/h, HAL_GPIO.c/h, port_ini.c, stm32f1_rtc.c/h)
+  gfx/         - display drivers and graphics (ILI9341.*, ili9341_*.c/h)
+  images/      - large image data files (image_*.c)
+  fonts/       - font sources (Font_34x37.c, Font_34x37.h, Fonts.c, Font1_34x37.c)
+  app/         - application-specific code (gp_drive.c/h, encoder.c/h, Filtrs.c/h, timestamp.c/h, rtc_unit.h)
+  utils/       - misc utilities (ADC.c/h, timestamp.c/h)  
+
+Proposed moves and renames (remove spaces -> underscores):
+
+- core/
+  - src/main.c -> src/core/main.c
+  - src/main.h -> src/core/main.h
+  - src/stm32f103xx_CMSIS.c -> src/core/stm32f103xx_CMSIS.c
+  - src/stm32f103xx_CMSIS.h -> src/core/stm32f103xx_CMSIS.h
+
+- drivers/
+  - src/i2c_drive.c -> src/drivers/i2c_drive.c
+  - src/i2c_drive.h -> src/drivers/i2c_drive.h
+  - src/SPI2.c -> src/drivers/SPI2.c
+  - src/SPI2.h -> src/drivers/SPI2.h
+  - src/HAL_GPIO.c -> src/drivers/HAL_GPIO.c
+  - src/HAL_GPIO.h -> src/drivers/HAL_GPIO.h
+  - src/port_ini.c -> src/drivers/port_ini.c
+  - src/stm32f1_rtc.c -> src/drivers/stm32f1_rtc.c
+  - src/stm32f1_rtc.h -> src/drivers/stm32f1_rtc.h
+
+- gfx/
+  - src/ILI9341.h -> src/gfx/ILI9341.h
+  - src/ili9341_cmd.c -> src/gfx/ili9341_cmd.c
+  - src/ili9341_cmd.h -> src/gfx/ili9341_cmd.h
+  - src/ili9341_Config.h -> src/gfx/ili9341_Config.h
+  - src/ili9341_gfx.c -> src/gfx/ili9341_gfx.c
+  - src/ili9341_gfx.h -> src/gfx/ili9341_gfx.h
+  - src/ili9341_hw.c -> src/gfx/ili9341_hw.c
+  - src/ili9341_hw.h -> src/gfx/ili9341_hw.h
+  - src/ili9341_text.c -> src/gfx/ili9341_text.c
+  - src/ili9341_text.h -> src/gfx/ili9341_text.h
+  - src/ili9341_time.c -> src/gfx/ili9341_time.c
+  - src/ili9341_time.h -> src/gfx/ili9341_time.h
+
+- images/ (rename files to remove spaces)
+  - src/image_ Back.c -> src/images/image_Back.c
+  - src/image_Coton.c -> src/images/image_Coton.c
+  - src/image_Delicate.c -> src/images/image_Delicate.c
+  - src/image_Electrolux_logo .c -> src/images/image_Electrolux_logo.c
+  - src/image_Fast 15.c -> src/images/image_Fast_15.c
+  - src/image_Noo.c -> src/images/image_Noo.c
+  - src/image_Noo_Water.c -> src/images/image_Noo_Water.c
+  - src/image_Pre-wash.c -> src/images/image_Pre_wash.c
+  - src/image_Rinsing.c -> src/images/image_Rinsing.c
+  - src/image_Setup_logo.c -> src/images/image_Setup_logo.c
+  - src/image_Spin.c -> src/images/image_Spin.c
+  - src/image_Start.c -> src/images/image_Start.c
+  - src/image_Synthetics.c -> src/images/image_Synthetics.c
+  - src/image_Temperature.c -> src/images/image_Temperature.c
+  - src/image_Washing time.c -> src/images/image_Washing_time.c
+  - src/image_Wool.c -> src/images/image_Wool.c
+  - src/image_Yas.c -> src/images/image_Yas.c
+  - src/image_Noo_Water.c -> src/images/image_Noo_Water.c
+  - src/image_Pre-wash.c -> src/images/image_Pre_wash.c
+
+- fonts/
+  - src/Font_34x37.c -> src/fonts/Font_34x37.c
+  - src/Font_34x37.h -> src/fonts/Font_34x37.h
+  - src/Font1_34x37.c -> src/fonts/Font1_34x37.c
+  - src/Fonts.c -> src/fonts/Fonts.c
+
+- app/
+  - src/gp_drive.c -> src/app/gp_drive.c
+  - src/gp_drive.h -> src/app/gp_drive.h
+  - src/encoder.c -> src/app/encoder.c
+  - src/encoder.h -> src/app/encoder.h
+  - src/Filtrs.c -> src/app/Filtrs.c
+  - src/Filtrs.h -> src/app/Filtrs.h
+  - src/timestamp.c -> src/app/timestamp.c
+  - src/timestamp.h -> src/app/timestamp.h
+  - src/rtc_unit.h -> src/app/rtc_unit.h
+
+- utils/
+  - src/ADC.c -> src/utils/ADC.c
+  - src/ADC.h -> src/utils/ADC.h
+
+Notes:
+- Header includes should continue to work if we add build_flags to platformio.ini pointing to these new subfolders (e.g., -I src/gfx -I src/drivers ...).
+- We'll not change the content of files (except for renaming), so symbols and externs remain intact.
+- After moving, I'll update `platformio.ini` to add include paths.
+
+Next step: confirm this plan and I will apply the changes and run a build.
