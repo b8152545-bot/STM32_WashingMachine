@@ -199,9 +199,10 @@ static uint32_t log_sample = 0;
 static uint32_t log_last_time_ms = 0;
 static uint32_t log_dropped = 0;
 static uint8_t log_has_started = 0;
+static uint8_t csv_header_sent = 0;
 
 #ifndef UART_LOG_PERIOD_MS
-#define UART_LOG_PERIOD_MS 200U
+#define UART_LOG_PERIOD_MS 20U
 #endif
 
 static void UART_SendLog(uint16_t rpm, int32_t setpoint, int32_t error,
@@ -209,16 +210,27 @@ static void UART_SendLog(uint16_t rpm, int32_t setpoint, int32_t error,
 {
     const uint32_t now = SysTimer_ms;
 
-    /* Throttle before checking UART or formatting: no snprintf on most PID ticks. */
+    /* Match the PID sampling interval and avoid formatting on other task calls. */
     if (log_has_started && (uint32_t)(now - log_last_time_ms) < UART_LOG_PERIOD_MS) {
         return;
     }
     log_has_started = 1;
     log_last_time_ms = now;
 
-    /* UART_Send_DMA is non-blocking, but only accepts data while TX is idle. */
     if (UART_IsTxBusy()) {
         log_dropped++;
+        return;
+    }
+
+    /* Send the CSV column names once, immediately before the first data record. */
+    if (!csv_header_sent) {
+        static const uint8_t header[] =
+            "sample,time_ms,rpm,setpoint_rpm,error_rpm,triac_delay,integral_percent\n";
+        if (UART_Send_DMA(header, (uint16_t)(sizeof(header) - 1U)) == 0) {
+            csv_header_sent = 1;
+        } else {
+            log_dropped++;
+        }
         return;
     }
 
