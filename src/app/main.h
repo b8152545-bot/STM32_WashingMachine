@@ -1,3 +1,40 @@
+/*
+Архитектура проекта
+src/
+├── app/          ← Логика приложения
+│   ├── main.c          — точка входа
+│   ├── selection_menu  — меню выбора программ
+│   ├── motor.c / motor_control.c — управление двигателем
+│   ├── pid.c           — ПИД-регулятор
+│   ├── encoder.c       — энкодер (PA0/PA1, TIM2)
+│   ├── zero_cross.c    — детектор нуля (PA6, TIM3_CH1)
+│   ├── pressostat.c    — прессостат (PB1, TIM3_CH4)
+│   ├── autotune.c      — автонастройка
+│   ├── hardware.c      — инициализация оборудования
+│   └── eeprom_images.c — работа с EEPROM (изображения/шрифты)
+│
+├── core/         ← Ядро системы
+│   ├── stm32f103xx_CMSIS — CMSIS-инициализация (clock, SysTick)
+│   ├── stm32f1_rtc       — RTC (часы реального времени)
+│   ├── timestamp         — работа с временем
+│   ├── port_ini.c        — настройка GPIO портов
+│   └── port_mapping.h    — карта пинов
+│
+├── drivers/      ← Драйверы периферии
+│   ├── ADC.c       — АЦП (температура PC0)
+│   ├── SPI2.c      — SPI для дисплея ILI9341
+│   ├── UART.c      — USART1 (PA9/PA10)
+│   ├── i2c_drive.c — I2C для EEPROM
+│   ├── HAL_GPIO.c  — GPIO
+│   └── gp_drive.c  — общие драйверы
+│
+├── gfx/          — Графика (ILI9341 + DMA)
+├── fonts/        — Шрифты
+├── images/       — Изображения (иконки программ)
+└── utils/        — Утилиты
+*/
+
+
 
 /*  Конфигурация портов STM32F103RCT6 - 64 pins
 
@@ -36,7 +73,7 @@ Zero-cross	        PA6	    TIM3_CH1 – вход захват
 Valve 1             PA11	(GPIO)	
 Valve 2             PA12	(GPIO)	
 Помпы________________________________			
-Pump Circul.	    PB1	    (GPIO)	
+Pump Circul.	    PC3	    (GPIO)	
 Pump Drain	        PB5	    (GPIO)	
 Двигатель____________________________			
 Triac управление	PA8	    TIM1_CH1 (выход OPM)    фазовое регулирование

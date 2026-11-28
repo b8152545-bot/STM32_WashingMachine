@@ -44,6 +44,8 @@ static struct {
     bool finished;
     float prev_val;
     bool first_analysis;
+    float filtered_input;        // <-- ДОБАВИТЬ: состояние фильтра RPM
+    bool  filtered_initialized;   // <-- ДОБАВИТЬ рядом с filtered_input
 } tuner;
 
 static uint32_t last_log_time = 0;   // для логирования
@@ -78,10 +80,23 @@ void AutoTune_Init(uint8_t direction, int steady, int step, uint32_t wait_ms,
     last_log_time = 0;
     tuner.prev_val = 0;
     tuner.first_analysis = true;
+    tuner.filtered_initialized = false;
+    tuner.filtered_input = 0.0f;   // <-- ДОБАВИТЬ
+    tuner.output = tuner.steady;   // <-- начальная мощность = steady
 }
 
-void AutoTune_SetInput(float input) {
+/*void AutoTune_SetInput(float input) {
     tuner.this_value = input;
+}*/
+
+void AutoTune_SetInput(float input) {
+    if (!tuner.filtered_initialized) {
+        tuner.filtered_input = input;
+        tuner.filtered_initialized = true;
+    } else {
+        tuner.filtered_input += (input - tuner.filtered_input) * 0.5f;
+    }
+    tuner.this_value = tuner.filtered_input;
 }
 
 void AutoTune_Compute(void) {
@@ -199,7 +214,6 @@ void AutoTune_Compute(void) {
                         
                         float Pu = 2.0f * tuner.osc_time / 1000.0f; // ИСПРАВЛЕНО: полный период!
                         tuner.PI_k[0] = TUNE_P_PI * Ku;
-                        tuner.PI_k[0] = TUNE_P_PI * Ku;
                         tuner.PI_k[1] = TUNE_I_PI * Ku / Pu;
                         tuner.PID_k[0] = TUNE_P_PID * Ku;
                         tuner.PID_k[1] = TUNE_I_PID * Ku / Pu;
@@ -247,6 +261,7 @@ void AutoTune_Reset(void) {
     tuner.state = STATE_IDLE;
     tuner.finished = false;
     tuner.accuracy = 0;
+    tuner.filtered_input = 0.0f;     // <-- через tuner.
 }
 
 uint8_t AutoTune_GetState(void) {

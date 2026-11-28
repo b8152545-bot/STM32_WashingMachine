@@ -47,7 +47,6 @@ void Hardware_Init (void) {
     Pressostat_Init();      // TIM3_CH4 на PB1
     HW_BuzzerInit();        //  PB8 (TIM4_CH3)
     HW_DoorSensorInit();    //  EXTI на PA7
-    MotorControl_Init();
     // Загрузка параметров из EEPROM (включая коэффициенты PID)
     LoadProgramParams();
     // Теперь инициализация управления мотором с загруженными коэффициентами
@@ -136,10 +135,12 @@ bool HW_OpenDoor(void) {
     // 4. Не удалось открыть после всех попыток – авария
     HW_IndicateError();
     // Ждём нажатия кнопки START для сброса (опционально)
-    while (Button_GetEvent()==3) // ждем длинного нажатия кнопки START
+    // Ждём длинного нажатия START (== 3). Пока ждём — мигаем индикацией ошибки.
+    // ВНИМАНИЕ: цикл блокирующий — при отказе кнопки система зависнет.
+    // TODO: вынести в неблокирующий автомат (см. ниже заметку).
+    while (Button_GetEvent() != 3)
     {
-         HW_Buzzer(1350,50);
-        // Мигаем индикацией ошибки
+        HW_Buzzer(1350, 50);
         HW_IndicateError();
         delay_ms(500);
     }
@@ -167,9 +168,12 @@ bool HW_CloseDoor(void) {
     }
 
     HW_IndicateError();
-    while (Button_GetEvent()==3) // ждем длинного нажатия кнопки START
+    // Ждём длинного нажатия START (== 3). Пока ждём — мигаем индикацией ошибки.
+    // ВНИМАНИЕ: цикл блокирующий — при отказе кнопки система зависнет.
+    // TODO: вынести в неблокирующий автомат (см. ниже заметку).
+    while (Button_GetEvent() != 3)
     {
-        HW_Buzzer(1350,50);
+        HW_Buzzer(1350, 50);
         HW_IndicateError();
         delay_ms(500);
     }
@@ -229,11 +233,8 @@ void HW_DisableHeater (void) {
 // Вспомогательная функция для преобразования сырого значения в градусы (uint8_t)
 static uint8_t raw_to_celsius(uint16_t raw)
 {
-    // Линейная интерполяция: y = y1 + (x - x1) * (y2 - y1) / (x2 - x1)
-    // При raw <= ADC_AT_15C возвращаем 15, при raw >= ADC_AT_91C возвращаем 91
-    //if (raw <= ADC_AT_10C) return 10;
-    //if (raw >= ADC_AT_91C) return 91;
-    
+    if (raw <= ADC_AT_10C) return 10;
+    if (raw >= ADC_AT_91C) return 91;
     uint32_t temp = 10 + (uint32_t)(raw - ADC_AT_10C) * (91 - 10) / (ADC_AT_91C - ADC_AT_10C);
     return (uint8_t)temp;
 }

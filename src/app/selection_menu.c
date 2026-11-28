@@ -519,8 +519,17 @@ void Setup_ServiceMenu(void)
             in_diag_menu = 0;
             need_redraw = 1;
             // сбросить кеш предыдущих значений, чтобы при следующем входе всё перерисовалось
-            prev_temp = prev_level = prev_rpm = 0;
-            prev_zerocross = prev_door = 0;
+            //prev_temp = prev_level = prev_rpm = 0;    // - оригинал
+            //prev_zerocross = prev_door = 0;           // - оригинал
+
+            // Фикс из аудита неполный: 
+            // нужно сбросить все пять кеш-переменных к «заведомо чужим» значениям, 
+            // не только prev_temp:
+            prev_temp      = 65535;
+            prev_level     = 255;
+            prev_rpm       = 255;
+            prev_zerocross = 255;
+            prev_door      = 255;
         }
         return;
     }
@@ -591,7 +600,7 @@ void Calibration_Mode(void)
                 
                 // ИСПРАВЛЕНО: ставим флаг запуска и подаем начальную мощность!
                 auto_tune_started = 1;
-                MotorControl_ApplyPercent(30); 
+                //MotorControl_ApplyPercent(30);   // -- баг — забыли, что steady уже 15
                 Motor_EnableForward();
                 
                 // Сразу очищаем экран для вывода статуса
@@ -664,21 +673,12 @@ void Calibration_Mode(void)
 
         // Вызов тюнера – каждый цикл
         if (auto_tune_started) {
-            // Фильтр RPM (сглаживание)
-            static float filtered_rpm = 0;
-            uint16_t raw_rpm = HW_GetRPM();
-            if (filtered_rpm == 0) filtered_rpm = raw_rpm;
-            else filtered_rpm = filtered_rpm + (raw_rpm - filtered_rpm) / 2;
-            AutoTune_SetInput(filtered_rpm);
+            // Фильтрация теперь внутри AutoTune_SetInput (сбрасывается через AutoTune_Init/Reset).
+            // Локальный static filtered_rpm удалён — именно он не сбрасывался между запусками.
+            AutoTune_SetInput((float)HW_GetRPM());
 
-            // БЫЛО:
-            //AutoTune_Compute();
-            //triac_delay = AutoTune_GetOutput();
-
-            // СТАЛО:
             AutoTune_Compute();
             MotorControl_ApplyPercent(AutoTune_GetOutput());
-
         }
 
         // Обновление экрана (не чаще 200 мс) – только если автонастройка ещё НЕ завершена
@@ -714,6 +714,8 @@ void Calibration_Mode(void)
                 eeprom_params.pid_ki = (int32_t)(ki * 1000);
                 eeprom_params.pid_kd = (int32_t)(kd * 1000);
                 SaveProgramParams();
+                // Применяем новые коэффициенты к работающему регулятору без перезагрузки
+                MotorControl_Init();
 
                 // Очищаем экран и выводим финальную информацию
                 ILI9341_FillRect_DMA(1, 1, SCREEN_WIDTH - 2, SCREEN_HEIGHT - 2, COLOR_BLACK);
@@ -772,7 +774,7 @@ void Calibration_Mode(void)
                 AutoTune_Reset();
                 calib_mode = 0;
                 finished_displayed = 0; // сброс для следующего запуска
-                auto_tune_started = 0; // <--- ДОБАВИТЬ СЮДА
+                auto_tune_started = 0; // <--- ДОБАВИТЬ 
             }
             return; // выходим, чтобы не обрабатывать другие состояния
         }
@@ -793,7 +795,7 @@ void Calibration_Mode(void)
             AutoTune_Reset();
             calib_mode = 0;
             finished_displayed = 0;
-            auto_tune_started = 0; // <--- ДОБАВИТЬ СЮДА
+            auto_tune_started = 0; // <--- ДОБАВИТЬ 
         }
         return;
     }
@@ -863,7 +865,8 @@ void Calibration_Mode(void)
         if (now - last_display_update >= 200) {
             last_display_update = now;
 
-            ILI9341_FillRect_DMA(10, 50, 250, 100, COLOR_BLACK);
+            // Правильный фикс расширить FillRect влево:так,старый курсор стирается
+            ILI9341_FillRect_DMA(1, 50, 259, 100, COLOR_BLACK);
 
             // Выводим Kp
             snprintf(buf, sizeof(buf), "Kp: %d.%03d", (int)(eeprom_params.pid_kp / 1000), (int)(eeprom_params.pid_kp % 1000));
@@ -1222,7 +1225,7 @@ void Menu_Update(uint16_t dt_ms) {
                 // Если пользователь случайно выставил 0 (например, программа без отжима)
                 if (target_rpm > 0) {
                     // Передаем цель (target_rpm), ramp=500, старт=12%, задержка=200 мс
-                    MotorControl_StartMotor(target_rpm, 500, 12, 200);   
+                    MotorControl_StartMotor(target_rpm, 200, 28, 400); 
                     Motor_StartWash();   // включает реле направления
                 } else {
                     Motor_Stop(); // На всякий случай, если цель 0

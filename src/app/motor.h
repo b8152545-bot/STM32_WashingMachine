@@ -4,6 +4,7 @@
 #include "hardware.h"
 #include "port_mapping.h"
 #include "stm32f103xx_CMSIS.h"
+#include "motor_control.h"   // берём TRIAC_DELAY_MIN/MAX оттуда
 
 // Пин управления симистором (PA8, TIM1_CH1)
 #define TRIAC_PORT     GPIOA

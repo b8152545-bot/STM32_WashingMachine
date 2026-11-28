@@ -32,7 +32,7 @@ static uint16_t startup_power_delay = TRIAC_DELAY_MAX;
 typedef struct { uint16_t delay; uint16_t rpm; } Point;
 static const Point points[] = {
     { 8200, 0 }, { 8180, 210 }, { 8160, 240 }, { 8140, 270 }, 
-    { 8120, 300 }, { 8100, 330 }, { 8080, 480 }, { 8060, 470 }, 
+    { 8120, 300 }, { 8100, 330 }, { 8080, 470 }, { 8060, 480 }, 
     { 8040, 530 }, { 8020, 630 }, { 8000, 700 }, { 7980, 760 }, 
     { 7960, 850 }, { 7940, 930 }, { 7920, 990 }, { 7900, 1100 },
     { 7880, 1150 }, { 7840, 1350 }, { 7800, 1670 }, { 7780, 1750 }, 
@@ -339,12 +339,12 @@ void MotorControl_Task(void)
     }
 }
 
-void MotorControl_ApplyPercent(int32_t percent)
-{
+void MotorControl_ApplyPercent(int32_t percent) {
     if (percent < 0)   percent = 0;
     if (percent > 100) percent = 100;
     __disable_irq();
     triac_delay = PowerPercentToDelayLinear(percent);
     last_triac_delay = triac_delay;
+    last_power_percent = percent;   // <-- синхронизируем rate-limiter
     __enable_irq();
 }

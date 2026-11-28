@@ -34,8 +34,6 @@ void HW_StartMotorSpin(uint16_t rpm);
 void HW_StopMotor (void);
 void HW_StopAll (void);
 void HW_IndicateComplete (void);
-void HW_StopAll (void);
-void HW_IndicateComplete (void);
 void HW_IndicateError(void);
 void HW_BuzzerInit(void);
 void HW_Buzzer(uint16_t freq, uint16_t duration_ms);
